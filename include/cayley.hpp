@@ -72,8 +72,8 @@ namespace cayley
         // Constructors
         explicit matrix(const Allocator& alloc = Allocator());
         explicit matrix(const size_type rows, const size_type columns, const Allocator& alloc = Allocator());
-        matrix(const matrix& other) = delete;
-        matrix(matrix&& other) = delete;
+        matrix(const matrix& other);
+        matrix(matrix&& other);
 
         // Copy Assign Operator
         matrix& operator=(const matrix& other) = delete;
@@ -118,13 +118,13 @@ namespace cayley
     matrix<T, Allocator>::matrix(const size_type rows, const size_type columns, const Allocator& alloc) :
         m_NumOfRows{ rows }, m_NumOfCols{ columns }, m_NumOfElements{ rows*columns }, m_Capacity{ rows*columns }, m_Allocator{ alloc }, m_DataPtr{ nullptr }
     {
-        if (0 != rows && 0 != columns)
+        if (0 != m_NumOfRows && 0 != m_NumOfCols)
         {
             m_DataPtr = std::allocator_traits<Allocator>::allocate(m_Allocator, m_Capacity);
             auto construct_fn = [&](auto element) { std::allocator_traits<Allocator>::construct(m_Allocator, element); };
             for_each_n_noderef(m_DataPtr, m_NumOfElements, construct_fn);
         }
-        else if (0 == rows && 0 == columns)
+        else if (0 == m_NumOfRows && 0 == m_NumOfCols)
         {
             // Empty matrix
         }
@@ -135,17 +135,45 @@ namespace cayley
     }
 
     template<typename T, typename Allocator>
+    matrix<T, Allocator>::matrix(const matrix<T, Allocator>& other) : 
+        m_NumOfRows{ other.m_NumOfRows }, m_NumOfCols{ other.m_NumOfCols }, m_NumOfElements{ other.m_NumOfElements }, m_Capacity{ other.m_Capacity },
+        m_DataPtr{ nullptr }, m_Allocator{}
+    {
+        if (0 != m_Capacity)
+        {
+            m_DataPtr = std::allocator_traits<Allocator>::allocate(m_Allocator, m_Capacity);
+        }
+        if (0 != m_NumOfElements)
+        {
+            auto other_ptr = other.m_DataPtr;
+            auto construct_fn = [&](auto element) { std::allocator_traits<Allocator>::construct(m_Allocator, element, *other_ptr); ++other_ptr; };
+            for_each_n_noderef(m_DataPtr, m_NumOfElements, construct_fn);
+        }
+    }
+
+    template<typename T, typename Allocator>
+    matrix<T, Allocator>::matrix(matrix<T, Allocator>&& other) :
+        m_NumOfRows{ std::move(other.m_NumOfRows) }, m_NumOfCols{ std::move(other.m_NumOfCols) }, m_NumOfElements{ std::move(other.m_NumOfElements) },
+        m_Capacity{ std::move(other.m_Capacity) }, m_DataPtr{ std::move(other.m_DataPtr) }, m_Allocator{ std::move(other.m_Allocator) }
+    {
+        other.m_NumOfRows = 0;
+        other.m_NumOfCols = 0;
+        other.m_NumOfElements = 0;
+        other.m_Capacity = 0;
+        other.m_DataPtr = nullptr;
+    }
+
+    template<typename T, typename Allocator>
     matrix<T, Allocator>::~matrix()
     {
-        if (nullptr != m_DataPtr)
+        if (0 != m_NumOfElements)
         {
-            if (0 != m_NumOfElements)
-            {
-                auto destroy_fn = [&](auto Elem) { std::allocator_traits<Allocator>::destroy(m_Allocator, Elem); };
-                for_each_n_noderef(m_DataPtr, m_NumOfElements, destroy_fn);
-            }
-            std::allocator_traits<Allocator>::deallocate(m_Allocator, m_DataPtr, m_Capacity);
-            m_DataPtr = nullptr;
+            auto destroy_fn = [&](auto Elem) { std::allocator_traits<Allocator>::destroy(m_Allocator, Elem); };
+            for_each_n_noderef(m_DataPtr, m_NumOfElements, destroy_fn);
+        }
+        if (0 != m_Capacity)
+        {
+            std::allocator_traits<Allocator>::deallocate(m_Allocator, m_DataPtr, m_Capacity);        
         }
     }
 

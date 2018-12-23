@@ -76,8 +76,8 @@ namespace cayley
         matrix(matrix&& other);
 
         // Copy Assign Operator
-        matrix& operator=(const matrix& other) = delete;
-        matrix& operator=(matrix&& other) = delete;
+        matrix& operator=(const matrix& other);
+        matrix& operator=(matrix&& other);
         
         // Destructor
         virtual ~matrix();
@@ -135,7 +135,7 @@ namespace cayley
     }
 
     template<typename T, typename Allocator>
-    matrix<T, Allocator>::matrix(const matrix<T, Allocator>& other) : 
+    matrix<T, Allocator>::matrix(const matrix& other) : 
         m_NumOfRows{ other.m_NumOfRows }, m_NumOfCols{ other.m_NumOfCols }, m_NumOfElements{ other.m_NumOfElements }, m_Capacity{ other.m_Capacity },
         m_DataPtr{ nullptr }, m_Allocator{}
     {
@@ -152,7 +152,7 @@ namespace cayley
     }
 
     template<typename T, typename Allocator>
-    matrix<T, Allocator>::matrix(matrix<T, Allocator>&& other) :
+    matrix<T, Allocator>::matrix(matrix&& other) :
         m_NumOfRows{ std::move(other.m_NumOfRows) }, m_NumOfCols{ std::move(other.m_NumOfCols) }, m_NumOfElements{ std::move(other.m_NumOfElements) },
         m_Capacity{ std::move(other.m_Capacity) }, m_DataPtr{ std::move(other.m_DataPtr) }, m_Allocator{ std::move(other.m_Allocator) }
     {
@@ -161,6 +161,56 @@ namespace cayley
         other.m_NumOfElements = 0;
         other.m_Capacity = 0;
         other.m_DataPtr = nullptr;
+    }
+
+    template<typename T, typename Allocator>
+    matrix<T, Allocator>& matrix<T, Allocator>::operator=(const matrix& other) 
+    {
+        if (this != &other) 
+        {
+            // copy-swap idiom
+            matrix tmp_copy(other);
+            std::swap(m_NumOfRows, tmp_copy.m_NumOfRows);
+            std::swap(m_NumOfCols, tmp_copy.m_NumOfCols);
+            std::swap(m_NumOfElements, tmp_copy.m_NumOfElements);
+            std::swap(m_Capacity, tmp_copy.m_Capacity);
+            std::swap(m_DataPtr, tmp_copy.m_DataPtr);
+            std::swap(m_Allocator, tmp_copy.m_Allocator);
+        }
+        return *this;
+    }
+
+    template<typename T, typename Allocator>
+    matrix<T, Allocator>& matrix<T, Allocator>::operator=(matrix&& other) 
+    {
+        if (this != &other)
+        {
+            // release current memory
+            if (0 != m_NumOfElements)
+            {
+                auto destroy_fn = [&](auto Elem) { std::allocator_traits<Allocator>::destroy(m_Allocator, Elem); };
+                for_each_n_noderef(m_DataPtr, m_NumOfElements, destroy_fn);
+            }
+            if (0 != m_Capacity)
+            {
+                std::allocator_traits<Allocator>::deallocate(m_Allocator, m_DataPtr, m_Capacity);
+            }
+
+            // copy members
+            m_NumOfRows = other.m_NumOfRows;
+            m_NumOfCols = other.m_NumOfRows;
+            m_NumOfElements = other.m_NumOfElements;
+            m_Capacity = other.m_Capacity;
+            m_DataPtr = other.m_DataPtr;
+
+            // set other empty
+            other.m_NumOfRows = 0;
+            other.m_NumOfCols = 0;
+            other.m_NumOfElements = 0;
+            other.m_Capacity = 0;
+            other.m_DataPtr = nullptr;
+        }
+        return *this;
     }
 
     template<typename T, typename Allocator>
@@ -252,24 +302,25 @@ namespace cayley
     template<typename T, typename Allocator>
     void matrix<T, Allocator>::reserve(size_type rows, size_type columns)
     {
-        auto NoZeroColsOrRows = (0 != rows && 0 != columns);
-        auto IsDiffNumOfColsOrRows = (rows != m_NumOfRows || m_NumOfRows != columns);
-        auto AreColsAndRowsEqualOrHigher = (rows >= m_NumOfRows && columns >= m_NumOfCols);
-        if (IsDiffNumOfColsOrRows && AreColsAndRowsEqualOrHigher && NoZeroColsOrRows)
+        auto ColsAndRowsAreNotZero = (0 != rows && 0 != columns);
+        auto ColsOrRowsAreDifferent = (rows != m_NumOfRows || m_NumOfRows != columns);
+        auto ColsAndRowsAreEqualOrHigher = (rows >= m_NumOfRows && columns >= m_NumOfCols);
+        if (ColsAndRowsAreNotZero && ColsOrRowsAreDifferent && ColsAndRowsAreEqualOrHigher)
         {
             auto new_capacity = rows * columns;
-            // Alloc new memory
+            // alloc new memory
             auto new_data_ptr = std::allocator_traits<Allocator>::allocate(m_Allocator, new_capacity);
-            // Move old members
-            std::move(m_DataPtr, m_DataPtr + m_NumOfElements, new_data_ptr);
             if (0 != m_NumOfElements) 
             {
+                // move members
+                std::move(m_DataPtr, m_DataPtr + m_NumOfElements, new_data_ptr);
+                // destroy old members
                 auto destroy_fn = [&](auto element) { std::allocator_traits<Allocator>::destroy(m_Allocator, element); };
                 for_each_n_noderef(m_DataPtr, m_NumOfElements, destroy_fn);
             }
-            // Release old memory
+            // release old memory
             std::allocator_traits<Allocator>::deallocate(m_Allocator, m_DataPtr, m_Capacity);
-            // Update class members
+            // update class members
             m_Capacity = new_capacity;
             m_DataPtr = new_data_ptr;
         }

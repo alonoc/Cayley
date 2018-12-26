@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <cstddef>
+#include <initializer_list>
 
 namespace cayley
 {
@@ -72,6 +73,8 @@ namespace cayley
         // Constructors
         explicit matrix(const Allocator& alloc = Allocator());
         explicit matrix(const size_type rows, const size_type columns, const Allocator& alloc = Allocator());
+        explicit matrix(const size_type rows, const size_type columns, const T& value, const Allocator& alloc = Allocator());
+        matrix(std::initializer_list<std::initializer_list<T>> init, const Allocator& alloc = Allocator());
         matrix(const matrix& other);
         matrix(matrix&& other);
 
@@ -106,7 +109,7 @@ namespace cayley
         pointer m_DataPtr;
         Allocator m_Allocator;
     };
-
+    
     template<typename T, typename Allocator>
     matrix<T, Allocator>::matrix(const Allocator& alloc) :
         m_NumOfRows{ 0 }, m_NumOfCols{ 0 }, m_NumOfElements{ 0 }, m_Capacity{ 0 }, m_DataPtr{ nullptr }, m_Allocator{ alloc }
@@ -130,7 +133,84 @@ namespace cayley
         }
         else
         {
-            throw std::invalid_argument("Invalid number of rows or columns");
+            throw std::invalid_argument("Invalid matrix<T> dimensions");
+        }
+    }
+
+    template<typename T, typename Allocator>
+    matrix<T,Allocator>::matrix(const size_type rows, const size_type columns, const T& value, const Allocator& alloc) :
+        m_NumOfRows{ rows }, m_NumOfCols{ columns }, m_NumOfElements{ rows*columns }, m_Capacity{ rows*columns }, m_Allocator{ alloc }, m_DataPtr{ nullptr }
+    {
+        if (0 != m_NumOfRows && 0 != m_NumOfCols)
+        {
+            m_DataPtr = std::allocator_traits<Allocator>::allocate(m_Allocator, m_Capacity);
+            auto construct_fn = [&](auto element) { std::allocator_traits<Allocator>::construct(m_Allocator, element, value); };
+            for_each_n_noderef(m_DataPtr, m_NumOfElements, construct_fn);
+        }
+        else if (0 == m_NumOfRows && 0 == m_NumOfCols)
+        {
+            // Empty matrix
+        }
+        else
+        {
+            throw std::invalid_argument("Invalid matrix<T> dimensions");
+        }
+    }
+
+    template<typename T, typename Allocator>
+    matrix<T, Allocator>::matrix(std::initializer_list<std::initializer_list<T>> init, const Allocator& alloc = Allocator()) :
+        m_Allocator{ alloc }
+    {
+        auto const num_of_rows = init.size();
+        if (0 == num_of_rows) 
+        {
+            m_NumOfRows = 0;
+            m_NumOfCols = 0;
+            m_NumOfElements = 0;
+            m_Capacity = 0;
+            m_DataPtr = nullptr;
+        }
+        else 
+        {
+            auto const num_of_cols = init.begin()->size();
+            bool is_initializer_list_ok = 0 != num_of_cols;
+            m_NumOfRows = num_of_rows;
+            m_NumOfCols = num_of_cols;
+            m_Capacity = num_of_rows * num_of_cols;
+            m_NumOfElements = 0;
+            
+            // Allocate new memory
+            m_DataPtr = std::allocator_traits<Allocator>::allocate(m_Allocator, m_Capacity);
+            
+            auto data_ptr = m_DataPtr;
+            for (auto row : init) 
+            {
+                if (num_of_cols != row.size()) 
+                {
+                    is_initializer_list_ok = false;
+                    break;
+                }
+                for (auto element : row) 
+                {
+                    std::allocator_traits<Allocator>::construct(m_Allocator, data_ptr, element); 
+                    ++data_ptr;
+                    ++m_NumOfElements;
+                }
+            }
+
+            if (!is_initializer_list_ok) 
+            {
+                if (0 != m_NumOfElements)
+                {
+                    auto destroy_fn = [&](auto Elem) { std::allocator_traits<Allocator>::destroy(m_Allocator, Elem); };
+                    for_each_n_noderef(m_DataPtr, m_NumOfElements, destroy_fn);
+                }
+                if (0 != m_Capacity)
+                {
+                    std::allocator_traits<Allocator>::deallocate(m_Allocator, m_DataPtr, m_Capacity);
+                }
+                throw std::invalid_argument("Invalid matrix<T> dimensions");
+            }
         }
     }
 

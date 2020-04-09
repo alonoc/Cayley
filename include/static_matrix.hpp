@@ -10,11 +10,16 @@
 
 #include <type_traits>
 #include <stdexcept>
+#include <algorithm>
+#include <iterator>
+#include <array>
+#include <cstddef>
 
 namespace cayley
 {
-    using size_type = unsigned int;
-    template<typename T, size_type R = 3, size_type C = 3>
+    
+
+    template<typename T, std::size_t R = 3, std::size_t C = 3>
     class static_matrix
     {
     public:
@@ -23,15 +28,14 @@ namespace cayley
         
         using reference = T&;
         using const_reference = const T&;
+        using size_type = std::size_t;
 
-        static_matrix() : m_NumOfRows{ R }, m_NumOfCols{ C }, m_NumOfElements{ R*C }
+        static_matrix(const T& value = T()) : m_Data(), m_NumOfRows{ R }, m_NumOfCols{ C }
         {
-            for(size_type it = 0; it < m_NumOfElements; ++it)
-            {
-                m_Data[it] = T{};
-            }
-        };
-        
+            using namespace std;
+            fill(begin(m_Data), end(m_Data), value);
+        }
+
         static_matrix(const static_matrix& other) = default;
         static_matrix(static_matrix&& other) = default;
 
@@ -40,7 +44,7 @@ namespace cayley
 
         virtual ~static_matrix(){};
 
-        constexpr size_type size() const noexcept { return m_NumOfElements; }
+        constexpr size_type size() const noexcept { return m_Data.size(); }
         constexpr size_type num_of_rows() const noexcept { return m_NumOfRows; }
         constexpr size_type num_of_cols() const noexcept { return m_NumOfCols; }
 
@@ -48,10 +52,9 @@ namespace cayley
         const_reference at(const size_type row_index, const size_type col_index) const;
 
     private:
-        T m_Data[R*C];
+        std::array<T, R*C> m_Data;
         size_type m_NumOfRows;
         size_type m_NumOfCols;
-        size_type m_NumOfElements;
 
         size_type calculate_element_position(const size_type row_index, const size_type col_index)
         {
@@ -59,14 +62,14 @@ namespace cayley
         }
     };
 
-    template<typename T, size_type R, size_type C>
+    template<typename T, std::size_t R, std::size_t C>
     typename static_matrix<T,R,C>::reference static_matrix<T,R,C>::at(const size_type row_index, const size_type col_index)
     {
         if (row_index >= m_NumOfRows)
         {
             throw std::out_of_range("Invalid static_matrix<T> row subscript");
         }
-        if (col_index >= m_NumOfCols)
+        else if (col_index >= m_NumOfCols)
         {
             throw std::out_of_range("Invalid static_matrix<T> column subscript");
         }
@@ -74,7 +77,7 @@ namespace cayley
         return m_Data[element_position];
     }
 
-    template<typename T, size_type R, size_type C>
+    template<typename T, std::size_t R, std::size_t C>
     typename static_matrix<T,R,C>::const_reference static_matrix<T,R,C>::at(const size_type row_index, const size_type col_index) const
     {
         if (row_index >= m_NumOfRows)

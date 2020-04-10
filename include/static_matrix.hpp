@@ -17,8 +17,6 @@
 
 namespace cayley
 {
-    
-
     template<typename T, std::size_t R = 3, std::size_t C = 3>
     class static_matrix
     {

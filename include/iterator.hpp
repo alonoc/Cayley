@@ -3,18 +3,20 @@
 
 #include <iterator>
 #include <cstddef>
+#include "utilities.hpp"
 
 namespace cayley
 {
-    
-    template<typename T, std::size_t Inc = 1>
+    template<typename T, std::size_t Inc = 1, bool IsConst = false>
     class iterator
     {
     public:
+        static_assert(Inc != 0, "Iterator requires an increment value higher than zero");
+
         using value_type = T;
-        using reference = T&;
-        using pointer = T*;
-        using iterator_category = std::input_iterator_tag;
+        using reference = typename choose<IsConst, const T&, T&>::type;
+        using pointer = typename choose<IsConst, const T*, T*>::type;
+        using iterator_category = std::bidirectional_iterator_tag;
         using difference_type = std::ptrdiff_t;
 
         // Constructors
@@ -30,50 +32,27 @@ namespace cayley
         virtual ~iterator() {};
 
         // Pre increment/decrement operators
-        iterator& operator++()
-        {
-            m_Ptr += Inc; 
-            return *this; 
-        }
-
-        iterator& operator--()
-        {
-            m_Ptr -= Inc; 
-            return *this; 
-        }
+        iterator& operator++();
+        iterator& operator--();
 
         // Post increment/decrement operators
-        iterator operator++(int dummy_op)
-        {
-            auto new_ptr_position = m_Ptr + Inc;
-            return iterator(new_ptr_position);
-        }
-
-        iterator operator--(int dummy_op)
-        {
-            auto new_ptr_position = m_Ptr - Inc;
-            return iterator(new_ptr_position); 
-        }
+        iterator operator++(int dummy_op);
+        iterator operator--(int dummy_op);
 
         // Equality/Inequality operator
-        bool operator==(const iterator& other)
-        {
-            return m_Ptr == other.m_Ptr;
-        }
+        bool operator==(const iterator& other);
+        bool operator!=(const iterator& other);
 
-        bool operator!=(const iterator& other)
-        {
-            return m_Ptr != other.m_Ptr;
-        }
-        
         // dereferencing
-        reference operator*() { return *m_Ptr; }
-        pointer operator->() { return m_Ptr; }
+        reference operator*();
+        pointer operator->();
 
     private:
         pointer m_Ptr;
     };
     
 }
+
+#include "iterator_priv.hpp"
 
 #endif

@@ -14,11 +14,10 @@ its dimensions (MxN).
 
 ## Constructor
 
-
 The default constructor just create the instance where you define the data type of your matrix, number of rows and columns.
 Take a look at the example below.
 
-```
+```c++
     using namespace cayley;
     static_matrix_2d<int, 4, 4> s_mat;
 ```

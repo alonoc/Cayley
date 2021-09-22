@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.0)
 project(Cayley)
 
 #compiler flags
@@ -12,9 +12,6 @@ endif()
 
 #setup testing
 enable_testing()
-find_package(GTest REQUIRED)
-include_directories(${GTEST_INCLUDE_DIR})
-
 include_directories(include/)
 
 file(GLOB test_files_SRC
@@ -26,9 +23,6 @@ add_executable(
     cayleyTests 
     ${test_files_SRC}
 )
-
-#link test executables against gtest
-target_link_libraries(cayleyTests ${GTEST_LIBRARY} pthread)
 
 #add tests
 add_test(
